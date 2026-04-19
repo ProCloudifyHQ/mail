@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", serif;
+  
+  --color-natural-bg: #F9F8F6;
+  --color-natural-card: #FDFCFB;
+  --color-natural-ui: #F3F1ED;
+  --color-natural-border: #EAE7E2;
+  --color-natural-ink: #2D2A26;
+  --color-natural-ink-light: #4A443F;
+  --color-natural-muted: #A19B95;
+  --color-natural-accent: #8B7E74;
+}
+
+@layer base {
+  body {
+    @apply bg-natural-bg text-natural-ink-light antialiased font-sans;
+  }
+  
+  h1, h2, h3 {
+    @apply font-serif;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-natural-border rounded-full hover:bg-natural-accent/30 transition-colors;
+}
+
+/* Email Content Styles */
+.email-content {
+  @apply text-natural-ink-light leading-relaxed overflow-x-auto;
+}
+
+.email-content img {
+  @apply max-w-full h-auto rounded-lg my-4;
+}
+
+.email-content a {
+  @apply text-natural-accent underline hover:text-natural-ink font-medium;
+}
+
+.email-content p {
+  @apply mb-4 last:mb-0;
+}
+
