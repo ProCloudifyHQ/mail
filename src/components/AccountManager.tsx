@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
-import { Mail, Shield, Server, Hash, Folder, X, AlertCircle, Save } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Mail, Shield, Server, Hash, Folder, X, AlertCircle, Save, Plus, Edit2, Trash2 } from 'lucide-react';
 import { Account } from '../types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 
 interface AccountManagerProps {
+  accounts: Account[];
   onAdd: (account: Omit<Account, 'id'>) => void;
+  onUpdate: (id: number, account: Omit<Account, 'id'>) => void;
+  onDelete: (id: number) => void;
   onCancel: () => void;
 }
 
-export default function AccountManager({ onAdd, onCancel }: AccountManagerProps) {
+export default function AccountManager({ accounts, onAdd, onUpdate, onDelete, onCancel }: AccountManagerProps) {
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [isFormVisible, setIsFormVisible] = useState(accounts.length === 0);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -16,147 +25,197 @@ export default function AccountManager({ onAdd, onCancel }: AccountManagerProps)
     secure: true,
     folder_name: ''
   });
-
   const [error, setError] = useState<string | null>(null);
+
+  const startEdit = (acc: Account) => {
+    setEditingId(acc.id);
+    setFormData({
+      email: acc.email,
+      password: '',
+      host: acc.host,
+      port: acc.port.toString(),
+      secure: acc.secure,
+      folder_name: acc.folder_name
+    });
+    setIsFormVisible(true);
+  };
+
+  const startAdd = () => {
+    setEditingId(null);
+    setFormData({
+      email: '',
+      password: '',
+      host: '',
+      port: '993',
+      secure: true,
+      folder_name: ''
+    });
+    setIsFormVisible(true);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.email || !formData.password || !formData.host || !formData.folder_name) {
+    if (!formData.email || (!formData.password && !editingId) || !formData.host || !formData.folder_name) {
       setError('Please fill in all required fields');
       return;
     }
     
-    onAdd({
-      ...formData,
-      port: parseInt(formData.port),
-      secure: formData.secure
-    });
+    if (editingId) {
+      onUpdate(editingId, {
+        ...formData,
+        port: parseInt(formData.port),
+        secure: formData.secure
+      });
+      setIsFormVisible(false);
+      setEditingId(null);
+    } else {
+      onAdd({
+        ...formData,
+        port: parseInt(formData.port),
+        secure: formData.secure
+      });
+      setIsFormVisible(false);
+    }
   };
 
   return (
-    <div className="flex-1 bg-natural-bg flex items-start justify-center p-8 overflow-y-auto">
-      <div className="max-w-2xl w-full bg-white rounded-3xl shadow-sm border border-natural-border overflow-hidden">
-        <div className="p-8 border-b border-natural-border flex items-center justify-between bg-natural-ui/50">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-bold text-natural-ink font-serif">Add Email Account</h2>
-            <p className="text-xs font-bold uppercase tracking-widest text-natural-muted">Connect a new inbox to your dashboard</p>
+    <div className="flex-1 bg-zinc-50 flex flex-col p-8 overflow-y-auto">
+      <div className="max-w-4xl w-full mx-auto space-y-6">
+        
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">Settings Workspace</h1>
+            <p className="text-sm text-zinc-500">Manage your connected inboxes and configuration.</p>
           </div>
-          <button onClick={onCancel} className="p-2 hover:bg-natural-border/30 rounded-full text-natural-muted transition-colors">
-            <X className="w-6 h-6" />
-          </button>
+          <Button variant="ghost" size="icon" onClick={onCancel}>
+            <X className="w-5 h-5" />
+          </Button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-8">
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 animate-in fade-in slide-in-from-top-2 shadow-sm">
-              <AlertCircle className="w-5 h-5 shrink-0" />
-              <p className="text-sm font-medium">{error}</p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <label className="text-[10px] font-bold text-natural-muted uppercase tracking-widest px-1">Identity</label>
-                <div className="space-y-3">
-                  <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-muted group-focus-within:text-natural-accent transition-colors" />
-                    <input
-                      type="email"
-                      placeholder="Email Address"
-                      className="w-full bg-natural-ui border border-natural-border rounded-2xl py-3.5 pl-12 pr-4 text-sm focus:bg-white focus:ring-4 focus:ring-natural-accent/10 focus:border-natural-accent transition-all outline-none text-natural-ink placeholder:text-natural-muted"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    />
+        {!isFormVisible ? (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Connected Accounts</CardTitle>
+                <CardDescription>You have {accounts.length} connected inboxes.</CardDescription>
+              </div>
+              <Button onClick={startAdd} size="sm"><Plus className="w-4 h-4 mr-2" /> Add Account</Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {accounts.map(acc => (
+                <div key={acc.id} className="flex items-center justify-between p-4 border rounded-lg bg-white">
+                  <div>
+                    <h3 className="font-semibold text-zinc-900">{acc.folder_name}</h3>
+                    <p className="text-sm text-zinc-500">{acc.email}</p>
                   </div>
-                  <div className="relative group">
-                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-muted group-focus-within:text-natural-accent transition-colors" />
-                    <input
-                      type="password"
-                      placeholder="App Password"
-                      className="w-full bg-natural-ui border border-natural-border rounded-2xl py-3.5 pl-12 pr-4 text-sm focus:bg-white focus:ring-4 focus:ring-natural-accent/10 focus:border-natural-accent transition-all outline-none text-natural-ink placeholder:text-natural-muted"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    />
-                  </div>
-                  <div className="relative group">
-                    <Folder className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-muted group-focus-within:text-natural-accent transition-colors" />
-                    <input
-                      type="text"
-                      placeholder="Folder Name (e.g. Work Mail)"
-                      className="w-full bg-natural-ui border border-natural-border rounded-2xl py-3.5 pl-12 pr-4 text-sm focus:bg-white focus:ring-4 focus:ring-natural-accent/10 focus:border-natural-accent transition-all outline-none text-natural-ink placeholder:text-natural-muted"
-                      value={formData.folder_name}
-                      onChange={(e) => setFormData({ ...formData, folder_name: e.target.value })}
-                    />
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => startEdit(acc)}>
+                      <Edit2 className="w-4 h-4 mr-2" /> Edit
+                    </Button>
+                    <Button variant="destructive" size="icon" onClick={() => onDelete(acc.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <label className="text-[10px] font-bold text-natural-muted uppercase tracking-widest px-1">IMAP Settings</label>
-                <div className="space-y-3">
-                  <div className="relative group">
-                    <Server className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-muted group-focus-within:text-natural-accent transition-colors" />
-                    <input
-                      type="text"
-                      placeholder="IMAP Server (e.g. imap.gmail.com)"
-                      className="w-full bg-natural-ui border border-natural-border rounded-2xl py-3.5 pl-12 pr-4 text-sm focus:bg-white focus:ring-4 focus:ring-natural-accent/10 focus:border-natural-accent transition-all outline-none text-natural-ink placeholder:text-natural-muted"
-                      value={formData.host}
-                      onChange={(e) => setFormData({ ...formData, host: e.target.value })}
-                    />
+              ))}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>{editingId ? 'Edit Account' : 'Add Email Account'}</CardTitle>
+              <CardDescription>Configure your IMAP connection settings.</CardDescription>
+            </CardHeader>
+            <form onSubmit={handleSubmit}>
+              <CardContent className="space-y-6">
+                {error && (
+                  <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md flex items-center gap-2 font-medium">
+                    <AlertCircle className="w-4 h-4" />
+                    {error}
                   </div>
-                  <div className="relative group">
-                    <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-muted group-focus-within:text-natural-accent transition-colors" />
-                    <input
-                      type="text"
-                      placeholder="Port (Default: 993)"
-                      className="w-full bg-natural-ui border border-natural-border rounded-2xl py-3.5 pl-12 pr-4 text-sm focus:bg-white focus:ring-4 focus:ring-natural-accent/10 focus:border-natural-accent transition-all outline-none text-natural-ink placeholder:text-natural-muted"
-                      value={formData.port}
-                      onChange={(e) => setFormData({ ...formData, port: e.target.value })}
-                    />
+                )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-zinc-900 uppercase tracking-widest">Identity & Folder</h4>
+                    <div className="space-y-2">
+                      <Label>Email Address</Label>
+                      <Input
+                        type="email"
+                        placeholder="hello@example.com"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>App Password {editingId && <span className="text-zinc-400 font-normal">(Leave blank to keep unchanged)</span>}</Label>
+                      <Input
+                        type="password"
+                        placeholder="••••••••••••"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Folder Name</Label>
+                      <Input
+                        type="text"
+                        placeholder="e.g. Work Mail"
+                        value={formData.folder_name}
+                        onChange={(e) => setFormData({ ...formData, folder_name: e.target.value })}
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 p-2 bg-natural-ui rounded-2xl border border-natural-border/50">
-                    <input
-                      type="checkbox"
-                      id="secure"
-                      className="w-5 h-5 rounded-md border-natural-border text-natural-accent focus:ring-natural-accent/20 transition-all"
-                      checked={formData.secure}
-                      onChange={(e) => setFormData({ ...formData, secure: e.target.checked })}
-                    />
-                    <label htmlFor="secure" className="text-xs font-bold text-natural-muted uppercase tracking-tight cursor-pointer">
-                      Secure SSL/TLS
-                    </label>
+                  
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-zinc-900 uppercase tracking-widest">Server Settings</h4>
+                    <div className="space-y-2">
+                      <Label>IMAP Server (Host)</Label>
+                      <Input
+                        type="text"
+                        placeholder="imap.gmail.com"
+                        value={formData.host}
+                        onChange={(e) => setFormData({ ...formData, host: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Port</Label>
+                      <Input
+                        type="number"
+                        placeholder="993"
+                        value={formData.port}
+                        onChange={(e) => setFormData({ ...formData, port: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 pt-2">
+                      <input
+                        type="checkbox"
+                        id="secure"
+                        className="w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+                        checked={formData.secure}
+                        onChange={(e) => setFormData({ ...formData, secure: e.target.checked })}
+                      />
+                      <Label htmlFor="secure" className="font-normal cursor-pointer">Use Secure Connection (SSL/TLS)</Label>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-4 flex items-center gap-4">
-            <button
-              type="submit"
-              className="flex-1 bg-natural-accent hover:bg-natural-accent/90 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-natural-accent/20 active:scale-[0.98] flex items-center justify-center gap-2"
-            >
-              <Save className="w-5 h-5" />
-              Save Account
-            </button>
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-8 border border-natural-border hover:bg-natural-ui text-natural-ink-light font-bold py-4 rounded-2xl transition-all active:scale-[0.98]"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-
-        <div className="p-8 bg-natural-ui/30 border-t border-natural-border/50">
-          <p className="text-[10px] font-bold text-natural-muted text-center leading-relaxed uppercase tracking-widest">
-            App Passwords may be required for Gmail and modern providers.
-          </p>
-        </div>
+              </CardContent>
+              <CardFooter className="flex justify-between border-t bg-zinc-50 pt-6">
+                <Button type="button" variant="ghost" onClick={() => {
+                  if (accounts.length > 0) {
+                    setIsFormVisible(false);
+                  } else {
+                    onCancel();
+                  }
+                }}>Cancel</Button>
+                <Button type="submit">
+                  <Save className="w-4 h-4 mr-2" />
+                  {editingId ? 'Save Changes' : 'Add Account'}
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
+        )}
       </div>
     </div>
   );

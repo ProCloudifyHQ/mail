@@ -1,6 +1,12 @@
+import { useState, useMemo } from 'react';
 import { Email } from '../types';
-import { Mail, Search, RefreshCw, Circle, Inbox } from 'lucide-react';
+import { Search, RefreshCw, Inbox } from 'lucide-react';
 import { format } from 'date-fns';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 
 interface EmailListProps {
   emails: Email[];
@@ -17,96 +23,111 @@ export default function EmailList({
   isLoading,
   onRefresh
 }: EmailListProps) {
+  const [search, setSearch] = useState('');
+  const [folderFilter, setFolderFilter] = useState<string>('all');
+
+  const uniqueFolders = useMemo(() => {
+    const folders = new Set(emails.map(e => e.folderName));
+    return Array.from(folders);
+  }, [emails]);
+
+  const filteredEmails = useMemo(() => {
+    return emails.filter(email => {
+      const matchSearch = email.subject.toLowerCase().includes(search.toLowerCase()) || 
+                          email.from.toLowerCase().includes(search.toLowerCase());
+      const matchFolder = folderFilter === 'all' || email.folderName === folderFilter;
+      return matchSearch && matchFolder;
+    });
+  }, [emails, search, folderFilter]);
+
   return (
-    <div className="w-[420px] flex flex-col h-full bg-natural-card border-r border-natural-border/50">
-      <div className="p-8 space-y-6">
+    <div className="w-[450px] flex flex-col h-full bg-white border-r">
+      <div className="p-4 space-y-4 border-b bg-zinc-50/50">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-serif text-natural-ink">Inbox</h2>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-natural-muted mt-1">
-              {isLoading ? 'Checking for mail...' : `${emails.length} Messages`}
+            <h2 className="text-xl font-bold text-zinc-900 tracking-tight">Inbox</h2>
+            <p className="text-xs text-zinc-500 font-medium">
+              {isLoading ? 'Checking for mail...' : `${filteredEmails.length} Messages`}
             </p>
           </div>
-          <button 
-            onClick={onRefresh}
-            disabled={isLoading}
-            className="p-2.5 bg-natural-ui hover:bg-natural-border/50 rounded-full transition-all text-natural-ink-light disabled:opacity-50 shadow-sm"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </button>
+          <Button variant="ghost" size="icon" onClick={onRefresh} disabled={isLoading}>
+            <RefreshCw className={`w-4 h-4 text-zinc-600 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
         </div>
-        <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-muted group-focus-within:text-natural-accent transition-colors" />
-          <input
-            type="text"
-            placeholder="Search messages..."
-            className="w-full bg-natural-ui border-none rounded-full py-3 pl-12 pr-4 text-sm focus:ring-1 focus:ring-natural-accent transition-all outline-none text-natural-ink placeholder:text-natural-muted"
-          />
+
+        <div className="flex gap-2">
+          <Select value={folderFilter} onValueChange={setFolderFilter}>
+            <SelectTrigger className="w-[140px] h-9 text-xs">
+              <SelectValue placeholder="All Folders" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Folders</SelectItem>
+              {uniqueFolders.map(folder => (
+                <SelectItem key={folder} value={folder}>{folder}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search..."
+              className="pl-8 h-9 text-xs w-full"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {isLoading && emails.length === 0 && (
-          <div className="p-12 text-center space-y-4">
-            <div className="w-16 h-16 bg-natural-ui rounded-full flex items-center justify-center mx-auto">
-              <Mail className="w-8 h-8 text-natural-muted" />
-            </div>
-            <p className="text-sm text-natural-muted font-medium">Fetching your inbox...</p>
+          <div className="p-12 text-center text-zinc-500">
+            <RefreshCw className="w-6 h-6 mx-auto mb-4 animate-spin text-zinc-300" />
+            <p className="text-sm font-medium">Fetching inbox...</p>
           </div>
         )}
 
-        {!isLoading && emails.length === 0 && (
-          <div className="p-12 text-center space-y-4">
-            <div className="w-16 h-16 bg-natural-ui rounded-full flex items-center justify-center mx-auto">
-              <Inbox className="w-8 h-8 text-natural-muted" />
-            </div>
-            <p className="text-sm text-natural-ink font-bold">No messages found</p>
-            <p className="text-xs text-natural-muted">Add an account to start receiving mail.</p>
+        {!isLoading && filteredEmails.length === 0 && (
+          <div className="p-12 text-center text-zinc-500">
+            <Inbox className="w-8 h-8 mx-auto mb-4 text-zinc-300" />
+            <p className="text-sm font-medium text-zinc-900">No messages found</p>
+            <p className="text-xs mt-1">Try a different search or filter.</p>
           </div>
         )}
 
-        {emails.map((email, idx) => (
-          <button
+        {filteredEmails.map((email) => (
+          <Card
             key={email.id}
             onClick={() => onSelectEmail(email)}
-            className={`w-full text-left p-5 rounded-2xl border transition-all relative group flex items-start gap-4 ${
-              selectedEmailId === email.id 
-                ? 'bg-white border-natural-accent shadow-md' 
-                : 'bg-white border-transparent shadow-sm hover:shadow-md hover:border-natural-border'
+            className={`p-4 cursor-pointer hover:bg-zinc-50 transition-colors border-none shadow-none rounded-lg ${
+              selectedEmailId === email.id ? 'bg-zinc-100/80' : 'bg-transparent'
             }`}
           >
-            <div className="w-10 h-10 rounded-full bg-natural-ui border border-natural-border flex items-center justify-center font-bold text-natural-accent shrink-0">
-              {(email.fromName || email.from)[0].toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <h3 className={`text-sm truncate ${!email.seen ? 'font-bold text-natural-ink' : 'font-semibold text-natural-ink-light'}`}>
-                    {email.fromName || email.from}
-                  </h3>
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tighter ${
-                    idx % 2 === 0 ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'
-                  }`}>
-                    {email.folderName}
-                  </span>
-                </div>
-                <span className="text-[10px] font-bold text-natural-muted shrink-0">
-                  {format(new Date(email.date), 'HH:mm')}
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 truncate">
+                <span className={`text-sm truncate ${!email.seen ? 'font-bold text-zinc-900' : 'font-medium text-zinc-700'}`}>
+                  {email.fromName || email.from}
                 </span>
               </div>
-              <p className={`text-xs mb-1 truncate ${!email.seen ? 'font-bold text-natural-ink' : 'text-natural-ink-light'}`}>
-                {email.subject || '(No Subject)'}
-              </p>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] text-natural-muted truncate flex-1">
-                  {email.snippet || 'No preview available'}
-                </span>
-                {!email.seen && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-natural-accent shadow-sm shadow-natural-accent/40" />
-                )}
-              </div>
+              <span className="text-xs text-zinc-400 shrink-0 whitespace-nowrap">
+                {format(new Date(email.date), 'HH:mm')}
+              </span>
             </div>
-          </button>
+            
+            <p className={`text-sm mb-1 line-clamp-1 ${!email.seen ? 'font-semibold text-zinc-900' : 'text-zinc-600'}`}>
+              {email.subject || '(No Subject)'}
+            </p>
+            
+            <div className="flex items-center justify-between gap-2 mt-2">
+              <Badge variant="outline" className="text-[10px] font-medium text-zinc-500 rounded-sm px-1.5 py-0">
+                {email.folderName}
+              </Badge>
+              {!email.seen && (
+                <div className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
+              )}
+            </div>
+          </Card>
         ))}
       </div>
     </div>

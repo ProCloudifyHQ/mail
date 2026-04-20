@@ -31,6 +31,16 @@ async function saveAccounts(accounts: any[]) {
   await fs.writeFile(DB_PATH, JSON.stringify(accounts, null, 2), 'utf-8');
 }
 
+// Authentication Middleware
+app.use('/api', (req, res, next) => {
+  const accessKey = req.headers['x-access-key'];
+  if (accessKey !== 'lios') {
+    res.status(401).json({ error: 'Unauthorized. Invalid access key.' });
+    return;
+  }
+  next();
+});
+
 // API Routes
 app.get('/api/accounts', async (req, res) => {
   try {
@@ -69,6 +79,35 @@ app.post('/api/accounts', async (req, res) => {
     
     await saveAccounts(accounts);
     res.json({ id: nextId });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/accounts/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { email, password, host, port, secure, folder_name } = req.body;
+    const accounts = await getAccounts();
+    
+    const accIndex = accounts.findIndex(acc => acc.id === id);
+    if (accIndex === -1) {
+      res.status(404).json({ error: 'Account not found' });
+      return;
+    }
+    
+    accounts[accIndex] = {
+      ...accounts[accIndex],
+      email,
+      password: password || accounts[accIndex].password, // preserve if empty
+      host,
+      port,
+      secure: secure ? 1 : 0,
+      folder_name
+    };
+    
+    await saveAccounts(accounts);
+    res.json({ message: 'Updated', id });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -118,9 +157,9 @@ app.get('/api/emails', async (req, res) => {
         try {
           const status = await client.status('INBOX', { messages: true });
           const totalMessages = status.messages || 0;
-          const start = Math.max(1, totalMessages - 19);
+          const start = Math.max(1, totalMessages - 99);
 
-          // Fetch last 20 emails
+          // Fetch last 100 emails
           const messages = await client.fetch(`${start}:*`, {
             envelope: true,
             source: false,
