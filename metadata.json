@@ -1,6 +1,6 @@
 {
-  "name": "Email Hub",
-  "description": "A modern email dashboard to aggregate and organize multiple email accounts into custom folders.",
+  "name": "Mailbox",
+  "description": "Manage your mail by Mailbox.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

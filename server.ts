@@ -267,7 +267,54 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  // Email Actions (Mark Read, Unread, Delete)
+app.post('/api/emails/:accountId/:uid/action', async (req, res) => {
+  try {
+    const accountId = parseInt(req.params.accountId, 10);
+    const uid = req.params.uid;
+    const { action } = req.body;
+
+    const accounts = await getAccounts();
+    const account = accounts.find(acc => acc.id === accountId);
+
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    const client = new ImapFlow({
+      host: account.host,
+      port: account.port,
+      secure: account.secure === 1 || account.secure === true,
+      auth: {
+        user: account.email,
+        pass: account.password
+      },
+      logger: false
+    });
+
+    await client.connect();
+    let lock = await client.getMailboxLock('INBOX');
+    try {
+      if (action === 'markRead') {
+        await client.messageFlagsAdd(uid, ['\\Seen'], { uid: true });
+      } else if (action === 'markUnread') {
+        await client.messageFlagsRemove(uid, ['\\Seen'], { uid: true });
+      } else if (action === 'delete') {
+        await client.messageFlagsAdd(uid, ['\\Deleted'], { uid: true });
+      } else {
+        return res.status(400).json({ error: 'Invalid action' });
+      }
+      res.json({ success: true });
+    } finally {
+      lock.release();
+    }
+    await client.logout();
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }

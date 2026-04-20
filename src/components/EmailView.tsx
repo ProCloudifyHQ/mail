@@ -1,5 +1,5 @@
 import { Email, EmailDetail } from '../types';
-import { Mail, Clock, User, Reply, Trash2, ArrowLeft, Maximize2 } from 'lucide-react';
+import { Mail, Clock, User, Reply, Trash2, ArrowLeft, EyeOff } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '@/components/ui/button';
@@ -11,9 +11,10 @@ interface EmailViewProps {
   detail: EmailDetail | null;
   isLoading: boolean;
   onClose: () => void;
+  onAction?: (action: 'markRead' | 'markUnread' | 'delete') => void;
 }
 
-export default function EmailView({ email, detail, isLoading, onClose }: EmailViewProps) {
+export default function EmailView({ email, detail, isLoading, onClose, onAction }: EmailViewProps) {
   if (!email && !isLoading) {
     return (
       <div className="flex-1 bg-zinc-50 flex items-center justify-center p-12">
@@ -39,21 +40,36 @@ export default function EmailView({ email, detail, isLoading, onClose }: EmailVi
           <Button variant="ghost" size="icon" onClick={onClose} className="md:hidden">
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <Badge variant="secondary" className="px-3 flex items-center gap-1.5 h-7">
+          <Badge variant="secondary" className="px-3 flex items-center gap-1.5 h-7 shadow-sm">
             <Mail className="w-3.5 h-3.5" />
             {email?.folderName}
           </Badge>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" title="Reply">
             <Reply className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="hover:text-red-500 hover:bg-red-50">
-            <Trash2 className="w-4 h-4" />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            title="Mark as Unread"
+            onClick={() => onAction && onAction('markUnread')}
+          >
+            <EyeOff className="w-4 h-4" />
           </Button>
-          <Separator orientation="vertical" className="h-6 mx-2" />
-          <Button variant="ghost" size="icon">
-            <Maximize2 className="w-4 h-4" />
+          <Separator orientation="vertical" className="h-6 mx-2 bg-zinc-200" />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="hover:text-red-500 hover:bg-red-50" 
+            title="Move to Trash"
+            onClick={() => {
+              if (confirm('Move this message to trash?')) {
+                onAction && onAction('delete');
+              }
+            }}
+          >
+            <Trash2 className="w-4 h-4" />
           </Button>
         </div>
       </div>

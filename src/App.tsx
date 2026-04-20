@@ -65,6 +65,13 @@ export default function App() {
     if (!accessKey) return;
     setSelectedEmail(email);
     setIsLoadingDetail(true);
+    
+    // Optimistically mark as seen
+    if (!email.seen) {
+      setEmails(prev => prev.map(e => e.id === email.id ? { ...e, seen: true } : e));
+      handleEmailAction(email, 'markRead');
+    }
+
     try {
       const res = await fetch(`/api/emails/${email.accountId}/${email.uid}`, {
         headers: { 'x-access-key': accessKey }
@@ -76,6 +83,30 @@ export default function App() {
       console.error('Failed to fetch email detail', err);
     } finally {
       setIsLoadingDetail(false);
+    }
+  };
+
+  const handleEmailAction = async (email: Email, action: 'markRead' | 'markUnread' | 'delete') => {
+    if (!accessKey) return;
+    try {
+      const res = await fetch(`/api/emails/${email.accountId}/${email.uid}/action`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-access-key': accessKey
+        },
+        body: JSON.stringify({ action })
+      });
+      if (res.ok) {
+        if (action === 'delete') {
+          setEmails(prev => prev.filter(e => e.id !== email.id));
+          if (selectedEmail?.id === email.id) setSelectedEmail(null);
+        } else if (action === 'markUnread') {
+          setEmails(prev => prev.map(e => e.id === email.id ? { ...e, seen: false } : e));
+        }
+      }
+    } catch (err) {
+      console.error('Action failed', err);
     }
   };
 
@@ -129,7 +160,6 @@ export default function App() {
   };
 
   const handleDeleteAccount = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this account?')) return;
     if (!accessKey) return;
     try {
       await fetch(`/api/accounts/${id}`, { 
@@ -201,6 +231,7 @@ export default function App() {
                   detail={emailDetail}
                   isLoading={isLoadingDetail}
                   onClose={() => setSelectedEmail(null)}
+                  onAction={(action) => selectedEmail && handleEmailAction(selectedEmail, action)}
                 />
               </>
             )}
@@ -209,7 +240,7 @@ export default function App() {
 
         <footer className="px-6 py-3 bg-zinc-50 border-t border-zinc-200 flex items-center justify-between text-[11px] font-medium text-zinc-500">
           <div className="flex gap-6">
-            <p>© 2026 Email Hub Dashboard</p>
+            <p>© 2026 Mailbox Dashboard</p>
             <a href="#" className="hover:text-zinc-900 transition-colors">Privacy</a>
             <a href="#" className="hover:text-zinc-900 transition-colors">Terms</a>
           </div>
